@@ -43,7 +43,7 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                 analysis_type=model.analysis_type,
                 keyword=model.keyword,
                 frequency=model.frequency,
-                metadata=model.metadata,
+                metadata=model.meta_data,
                 created_at=model.created_at.isoformat() if model.created_at else "",
             )
 
@@ -85,7 +85,7 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                     analysis_type=model.analysis_type,
                     keyword=model.keyword,
                     frequency=model.frequency,
-                    metadata=model.metadata,
+                    metadata=model.meta_data,
                     created_at=model.created_at.isoformat()
                     if model.created_at
                     else "",

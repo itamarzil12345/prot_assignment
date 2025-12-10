@@ -56,7 +56,7 @@ class AnalysisResultModel(Base):
     analysis_type = Column(Enum(AnalysisType), nullable=False, index=True)
     keyword = Column(String(255), nullable=True, index=True)
     frequency = Column(Integer, nullable=False, default=0)
-    metadata = Column(JSON, nullable=True)
+    meta_data = Column("metadata", JSON, nullable=True)  # Column named 'metadata' in DB, but 'meta_data' in Python (metadata is reserved)
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,7 +71,7 @@ class AnalysisResultModel(Base):
             "analysis_type": self.analysis_type.value,
             "keyword": self.keyword,
             "frequency": self.frequency,
-            "metadata": self.metadata,
+            "metadata": self.meta_data,  # Expose as 'metadata' in API
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

@@ -62,10 +62,16 @@ async def init_db() -> None:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     except Exception as e:
+        import traceback
+        error_details = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc(),
+        }
         raise DatabaseError(
             message="Failed to initialize database",
             error_code="DB_INIT_ERROR",
-            details={"error": str(e)},
+            details=error_details,
         ) from e
 
 

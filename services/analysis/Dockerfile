@@ -15,12 +15,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy shared code
 COPY shared /app/shared
 
-# Copy service code
-COPY services/analysis/src /app/src
+# Copy service code (maintain structure for imports)
+COPY services /app/services
 
 # Set Python path
 ENV PYTHONPATH=/app
 
 # Run analysis service
-CMD ["python", "-m", "src.main"]
+CMD ["python", "-m", "services.analysis.src.main"]
 

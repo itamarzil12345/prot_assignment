@@ -15,8 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy shared code
 COPY shared /app/shared
 
-# Copy service code
-COPY services/api/src /app/src
+# Copy service code (maintain structure for imports)
+COPY services /app/services
 
 # Set Python path
 ENV PYTHONPATH=/app
@@ -25,5 +25,5 @@ ENV PYTHONPATH=/app
 EXPOSE 8000
 
 # Run API service
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "services.api.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
