@@ -2,6 +2,87 @@
 
 A microservices-based system for scraping, analyzing, and exposing FDA drug labels and clinical trials data.
 
+## Quick Start
+
+> **📌 Working Directory:** All commands in this Quick Start section should be run from the project root directory
+
+### 2. Start All Services
+
+**From the project root directory** , run:
+
+```bash
+./scripts/start.sh
+```
+
+### Prerequisites
+
+- Python 3.11+
+- Docker & Docker Compose
+- Access to Neon PostgreSQL database
+- Environment variables configured (see `.env.example`)
+
+### 1. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your Neon database credentials
+```
+
+This single command will:
+
+- Build Docker images for all services
+- Start all 3 services in parallel (Scraper, Analysis, API)
+- Set up networking and logging
+
+**Or use docker-compose directly (also from project root):**
+
+```bash
+docker-compose up --build -d
+```
+
+> **Important:** All commands in this guide should be run from the project root directory unless otherwise specified.
+
+### 3. Verify Services Are Running
+
+**From the project root directory:**
+
+```bash
+# Check service status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# View specific service logs
+docker-compose logs -f api
+docker-compose logs -f scraper
+docker-compose logs -f analysis
+```
+
+### 4. Test the API
+
+**From the project root directory:**
+
+```bash
+./scripts/test-api.sh
+```
+
+**Or manually:**
+
+- API Documentation: http://localhost:8000/docs
+- Health Check: http://localhost:8000/health
+- API Endpoints: http://localhost:8000/api/v1/scraping, http://localhost:8000/api/v1/analysis
+
+### 5. Stop Services
+
+**From the project root directory:**
+
+```bash
+docker-compose down
+```
+
+---
+
 ## Architecture Overview
 
 ```mermaid
@@ -149,7 +230,7 @@ Logs use structured JSON format in production, plain text in development.
 ## Project Structure
 
 ```
-protego_task/
+/
 ├── services/
 │   ├── scraper/          # Scraper service
 │   │   └── logs/         # Scraper service logs
@@ -161,73 +242,49 @@ protego_task/
 ├── tests/                # Test files
 ├── migrations/           # Alembic database migrations
 ├── k8s/                  # Kubernetes manifests
+├── scripts/              # Utility scripts
+│   ├── start.sh         # Start all services
+│   └── test-api.sh      # Test API endpoints
 ├── .env.example          # Environment variables template
 ├── docker-compose.yml    # Local development setup
 └── README.md             # This file
 ```
 
-## Prerequisites
+## Local Development Setup (Alternative)
 
-- Python 3.11+
-- Docker & Docker Compose (for local development)
-- Kubernetes cluster (for deployment)
-- Access to Neon PostgreSQL database
-- Environment variables configured (see `.env.example`)
+If you prefer to run services directly with Python instead of Docker:
 
-## Local Development Setup
-
-### 1. Clone Repository
-
-```bash
-git clone <repository-url>
-cd protego_task
-```
-
-### 2. Configure Environment
-
-```bash
-cp .env.example .env
-# Edit .env with your Neon database credentials
-```
-
-### 3. Install Dependencies
+### 1. Install Dependencies
 
 ```bash
 pip install -e ".[dev]"
 ```
 
-### 4. Run Database Migrations
+### 2. Run Database Migrations
 
 ```bash
 alembic upgrade head
 ```
 
-### 5. Run Services Locally
+### 3. Run Services Manually
 
-**Option A: Using Python directly**
+**Terminal 1: Scraper service**
 
 ```bash
-# Terminal 1: Scraper service
 cd services/scraper && python -m src.main
+```
 
-# Terminal 2: Analysis service
+**Terminal 2: Analysis service**
+
+```bash
 cd services/analysis && python -m src.main
+```
 
-# Terminal 3: API service
+**Terminal 3: API service**
+
+```bash
 cd services/api && python -m src.main
 ```
-
-**Option B: Using Docker Compose**
-
-```bash
-docker-compose up --build
-```
-
-### 6. Access Services
-
-- API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-- Health Check: http://localhost:8000/health
 
 ## Kubernetes Deployment
 
@@ -301,9 +358,30 @@ kubectl logs -f deployment/protego-api
 
 - `GET /health` - Health check endpoint
 
-## Testing
+## Testing the System
 
-### Run Tests
+### Quick System Test
+
+1. **Start all services:**
+
+   ```bash
+   ./scripts/start.sh
+   ```
+
+2. **Test API endpoints:**
+
+   ```bash
+   ./scripts/test-api.sh
+   ```
+
+3. **Check service logs:**
+   ```bash
+   docker-compose logs -f
+   ```
+
+For detailed testing instructions, see [TESTING.md](./TESTING.md).
+
+### Unit Tests (TODO)
 
 ```bash
 # Run all tests
