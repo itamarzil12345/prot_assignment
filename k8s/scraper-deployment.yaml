@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: protego-scraper
+  namespace: default
+  labels:
+    app: protego-scraper
+    service: scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: protego-scraper
+  template:
+    metadata:
+      labels:
+        app: protego-scraper
+        service: scraper
+    spec:
+      containers:
+      - name: scraper
+        image: protego-scraper:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: protego-config
+        - secretRef:
+            name: protego-secrets
+        volumeMounts:
+        - name: logs
+          mountPath: /app/services/scraper/logs
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: logs
+        emptyDir: {}
+      restartPolicy: Always
+

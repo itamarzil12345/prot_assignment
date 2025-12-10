@@ -66,6 +66,10 @@ coverage.xml
 logs/
 *.log
 *.log.*
+# Keep logs directories but ignore log files
+services/*/logs/*.log
+services/*/logs/*.log.*
+!services/*/logs/.gitkeep
 
 # Database
 *.db

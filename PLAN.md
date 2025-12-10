@@ -294,7 +294,7 @@ protego_task/
 ### 7. Logging System
 
 - Centralized logging infrastructure using Factory pattern
-- Each service maintains at least 5 log files in `/logs/<service_name>/`:
+- Each service maintains at least 5 log files in `services/<service_name>/logs/`:
   - `error.log` - Error level logs only
   - `info.log` - Info level logs (operational events)
   - `debug.log` - Debug level logs (detailed debugging info)
