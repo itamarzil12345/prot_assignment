@@ -13,4 +13,3 @@ it ? analysis and then persisting to db ? or only on demand
 ✅ consider to refactor data ingestion to batches
 ✅ analyse analysis performance and improve
 ✅ refactor naive approach to frequency to bigram extraction and n-gram extraction
-- inspect analysis_type: CATEGORY_GROUPING has keyword: null for all records
