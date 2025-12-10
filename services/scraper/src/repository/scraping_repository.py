@@ -66,7 +66,7 @@ class ScrapingRepository(ScrapingRepositoryInterface):
                 title=model.title,
                 data=model.data,
                 link=model.link,
-                scraped_at=model.scraped_at.isoformat() if model.scraped_at else "",
+                scraped_at=model.scraped_at,
             )
 
         except Exception as e:
@@ -98,7 +98,7 @@ class ScrapingRepository(ScrapingRepositoryInterface):
                 title=model.title,
                 data=model.data,
                 link=model.link,
-                scraped_at=model.scraped_at.isoformat() if model.scraped_at else "",
+                scraped_at=model.scraped_at,
             )
 
         except Exception as e:

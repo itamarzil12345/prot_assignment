@@ -111,20 +111,6 @@ class AnalysisService:
                     from services.scraper.src.models.scraping_result_dto import (
                         ScrapingResultDTO as ModelScrapingResultDTO,
                     )
-                    from datetime import datetime
-
-                    # Parse scraped_at from ISO format string
-                    scraped_at_str = scraping_result.scraped_at
-                    if scraped_at_str:
-                        # Handle both with and without timezone
-                        if scraped_at_str.endswith('Z'):
-                            scraped_at_str = scraped_at_str[:-1] + '+00:00'
-                        try:
-                            scraped_at_dt = datetime.fromisoformat(scraped_at_str)
-                        except ValueError:
-                            scraped_at_dt = datetime.now(timezone.utc)
-                    else:
-                        scraped_at_dt = datetime.now(timezone.utc)
 
                     model_result = ModelScrapingResultDTO(
                         id=scraping_result.id,
@@ -133,7 +119,7 @@ class AnalysisService:
                         title=scraping_result.title,
                         data=scraping_result.data,
                         link=scraping_result.link,
-                        scraped_at=scraped_at_dt,
+                        scraped_at=scraping_result.scraped_at,
                     )
 
                     # Perform analysis
@@ -149,7 +135,7 @@ class AnalysisService:
                                 keyword=result.keyword,
                                 frequency=result.frequency,
                                 metadata=result.metadata,
-                                created_at=result.created_at.isoformat(),
+                                created_at=result.created_at,
                             )
                             for result in analysis_results
                         ]

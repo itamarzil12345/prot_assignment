@@ -1,6 +1,7 @@
 """Repository interface for scraping results."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -19,7 +20,7 @@ class ScrapingResultDTO:
         title: str,
         data: dict,
         link: str,
-        scraped_at: str,
+        scraped_at: datetime,
     ) -> None:
         """Initialize scraping result DTO."""
         self.id = id

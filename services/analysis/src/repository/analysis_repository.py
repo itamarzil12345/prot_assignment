@@ -100,7 +100,7 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                 keyword=model.keyword,
                 frequency=model.frequency,
                 metadata=model.metadata,
-                created_at=model.created_at.isoformat() if model.created_at else "",
+                created_at=model.created_at,
             )
 
         except Exception as e:

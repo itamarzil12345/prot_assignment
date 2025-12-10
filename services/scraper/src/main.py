@@ -100,7 +100,7 @@ class ScraperService:
                         title=result.title,
                         data=result.data,
                         link=result.link,
-                        scraped_at=result.scraped_at.isoformat(),
+                        scraped_at=result.scraped_at,
                     )
 
                     await repository.create(repo_dto)

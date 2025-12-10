@@ -1,6 +1,7 @@
 """Repository interface for analysis results."""
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 
@@ -19,7 +20,7 @@ class AnalysisResultDTO:
         keyword: Optional[str],
         frequency: int,
         metadata: Optional[dict],
-        created_at: str,
+        created_at: datetime,
     ) -> None:
         """Initialize analysis result DTO."""
         self.id = id
