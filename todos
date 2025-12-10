@@ -1,6 +1,11 @@
-1. prompt and review agent plan - strict code standards, file size limitation, types
-   patterns, SOLID, logging, etc..
-2. discuss Count keyword mentions, Most frequent terms how is the analytics service going to do
-   it ? analysis and then persisting to db ? or only on demand
-3. run build, test, deploy
+V - 1. prompt and review agent plan - strict code standards, file size limitation, types
+patterns, SOLID, logging, etc..
+V -2. discuss Count keyword mentions, Most frequent terms how is the analytics service going to do
+it ? analysis and then persisting to db ? or only on demand
+V - 3. run build, test, deploy
+
+- test data ingestion in postgres and inspect it
+- test analytics data
+- test API
+
 4. use Cursor MCP for postman (API testing) and for mermaid (to communicate architecture)

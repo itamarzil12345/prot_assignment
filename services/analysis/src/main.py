@@ -3,7 +3,7 @@
 import asyncio
 import signal
 from datetime import timezone
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from services.analysis.src.config import ANALYSIS_ENABLED, ANALYSIS_BATCH_SIZE
 from services.analysis.src.constants import SERVICE_NAME
@@ -18,6 +18,7 @@ from services.analysis.src.repository.analysis_repository_interface import (
 )
 from services.scraper.src.repository.scraping_repository import ScrapingRepository
 from shared.config import settings
+from shared.database.engine_factory import create_database_engine
 from shared.logging.logger_factory import LoggerFactory
 from shared.logging.logger_interface import LoggerInterface
 from shared.types.enums import AnalysisType
@@ -30,10 +31,11 @@ class AnalysisService:
         """Initialize analysis service."""
         self._logger: LoggerInterface = LoggerFactory.create_logger(SERVICE_NAME)
         self._scheduler: AnalysisScheduler | None = None
-        self._engine = create_async_engine(
-            settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
+        self._engine = create_database_engine(
             pool_size=settings.db_pool_size,
             max_overflow=settings.db_max_overflow,
+            pool_timeout=settings.db_pool_timeout,
+            pool_recycle=settings.db_pool_recycle,
         )
         self._session_factory = async_sessionmaker(
             self._engine,

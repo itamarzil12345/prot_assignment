@@ -2,7 +2,7 @@
 
 import asyncio
 import signal
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from services.scraper.src.config import SCRAPER_ENABLED
 from services.scraper.src.constants import SERVICE_NAME
@@ -13,6 +13,7 @@ from services.scraper.src.repository.scraping_repository_interface import (
     ScrapingResultDTO as RepoScrapingResultDTO,
 )
 from shared.config import settings
+from shared.database.engine_factory import create_database_engine
 from shared.logging.logger_factory import LoggerFactory
 from shared.logging.logger_interface import LoggerInterface
 from shared.types.enums import SourceType
@@ -25,10 +26,11 @@ class ScraperService:
         """Initialize scraper service."""
         self._logger: LoggerInterface = LoggerFactory.create_logger(SERVICE_NAME)
         self._scheduler: DailyScheduler | None = None
-        self._engine = create_async_engine(
-            settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
+        self._engine = create_database_engine(
             pool_size=settings.db_pool_size,
             max_overflow=settings.db_max_overflow,
+            pool_timeout=settings.db_pool_timeout,
+            pool_recycle=settings.db_pool_recycle,
         )
         self._session_factory = async_sessionmaker(
             self._engine,

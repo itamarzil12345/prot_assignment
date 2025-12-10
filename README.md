@@ -6,14 +6,6 @@ A microservices-based system for scraping, analyzing, and exposing FDA drug labe
 
 > **📌 Working Directory:** All commands in this Quick Start section should be run from the project root directory
 
-### 2. Start All Services
-
-**From the project root directory** , run:
-
-```bash
-./scripts/start.sh
-```
-
 ### Prerequisites
 
 - Python 3.11+
@@ -28,6 +20,14 @@ cp .env.example .env
 # Edit .env with your Neon database credentials
 ```
 
+### 2. Start All Services
+
+**From the project root directory**, run:
+
+```bash
+./scripts/start.sh
+```
+
 This single command will:
 
 - Build Docker images for all services
@@ -40,9 +40,18 @@ This single command will:
 docker-compose up --build -d
 ```
 
+### 3. Access API Documentation
+
+Once services are running, access the interactive API documentation:
+
+- **Swagger UI**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
+
+The Swagger UI provides an interactive interface to explore and test all API endpoints.
+
 > **Important:** All commands in this guide should be run from the project root directory unless otherwise specified.
 
-### 3. Verify Services Are Running
+### 4. Verify Services Are Running
 
 **From the project root directory:**
 
@@ -59,7 +68,7 @@ docker-compose logs -f scraper
 docker-compose logs -f analysis
 ```
 
-### 4. Test the API
+### 5. Test the API
 
 **From the project root directory:**
 
@@ -67,13 +76,11 @@ docker-compose logs -f analysis
 ./scripts/test-api.sh
 ```
 
-**Or manually:**
+**Or manually test endpoints:**
 
-- API Documentation: http://localhost:8000/docs
-- Health Check: http://localhost:8000/health
 - API Endpoints: http://localhost:8000/api/v1/scraping, http://localhost:8000/api/v1/analysis
 
-### 5. Stop Services
+### 6. Stop Services
 
 **From the project root directory:**
 
@@ -84,6 +91,8 @@ docker-compose down
 ---
 
 ## Architecture Overview
+
+> **📊 Detailed Architecture Diagrams**: For comprehensive architecture diagrams including data flow, design patterns, and sequence diagrams, see [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ```mermaid
 graph TB

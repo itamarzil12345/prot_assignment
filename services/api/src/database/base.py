@@ -5,6 +5,7 @@ from sqlalchemy.orm import DeclarativeBase
 from typing import AsyncGenerator
 
 from shared.config import settings
+from shared.database.engine_factory import create_database_engine
 from shared.errors import DatabaseError
 
 
@@ -14,14 +15,12 @@ class Base(DeclarativeBase):
     pass
 
 
-# Create async engine
-engine = create_async_engine(
-    settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
+# Create async engine with proper SSL configuration
+engine = create_database_engine(
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
     pool_timeout=settings.db_pool_timeout,
     pool_recycle=settings.db_pool_recycle,
-    echo=False,  # Set to True for SQL query logging
 )
 
 
