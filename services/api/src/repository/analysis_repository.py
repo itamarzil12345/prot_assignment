@@ -3,7 +3,7 @@
 from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func, and_
 
 from services.api.src.database.models import AnalysisResultModel
 from services.api.src.repository.analysis_repository_interface import (
@@ -60,20 +60,31 @@ class AnalysisRepository(AnalysisRepositoryInterface):
         offset: int,
         analysis_type: Optional[AnalysisType] = None,
         scraping_result_id: Optional[UUID] = None,
+        keyword: Optional[str] = None,
     ) -> List[AnalysisResultDTO]:
         """List analysis results with pagination."""
         try:
-            stmt = select(AnalysisResultModel).limit(limit).offset(offset)
+            conditions = []
 
             if analysis_type:
-                stmt = stmt.where(AnalysisResultModel.analysis_type == analysis_type)
+                conditions.append(AnalysisResultModel.analysis_type == analysis_type)
 
             if scraping_result_id:
-                stmt = stmt.where(
+                conditions.append(
                     AnalysisResultModel.scraping_result_id == scraping_result_id
                 )
 
-            stmt = stmt.order_by(AnalysisResultModel.created_at.desc())
+            if keyword:
+                # Use case-insensitive exact match for better precision
+                conditions.append(
+                    func.lower(AnalysisResultModel.keyword) == keyword.lower()
+                )
+
+            stmt = select(AnalysisResultModel)
+            if conditions:
+                stmt = stmt.where(and_(*conditions))
+
+            stmt = stmt.order_by(AnalysisResultModel.created_at.desc()).limit(limit).offset(offset)
 
             result = await self._session.execute(stmt)
             models = result.scalars().all()
@@ -98,6 +109,89 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                 message="Failed to list analysis results",
                 error_code="ANALYSIS_RESULT_LIST_ERROR",
                 details={"error": str(e), "limit": limit, "offset": offset},
+            ) from e
+
+    async def count_all(
+        self,
+        analysis_type: Optional[AnalysisType] = None,
+        scraping_result_id: Optional[UUID] = None,
+        keyword: Optional[str] = None,
+    ) -> int:
+        """Count total analysis results matching filters."""
+        try:
+            conditions = []
+
+            if analysis_type:
+                conditions.append(AnalysisResultModel.analysis_type == analysis_type)
+
+            if scraping_result_id:
+                conditions.append(
+                    AnalysisResultModel.scraping_result_id == scraping_result_id
+                )
+
+            if keyword:
+                # Use case-insensitive exact match for better precision
+                conditions.append(
+                    func.lower(AnalysisResultModel.keyword) == keyword.lower()
+                )
+
+            stmt = select(func.count(AnalysisResultModel.id))
+            if conditions:
+                stmt = stmt.where(and_(*conditions))
+
+            result = await self._session.execute(stmt)
+            return result.scalar() or 0
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to count analysis results",
+                error_code="ANALYSIS_RESULT_COUNT_ERROR",
+                details={"error": str(e)},
+            ) from e
+
+    async def get_most_frequent_terms(
+        self,
+        limit: int,
+        analysis_type: Optional[AnalysisType] = None,
+    ) -> List[dict]:
+        """Get most frequent terms across all analysis results."""
+        try:
+            conditions = [
+                AnalysisResultModel.keyword.isnot(None),
+            ]
+
+            if analysis_type:
+                conditions.append(AnalysisResultModel.analysis_type == analysis_type)
+
+            stmt = (
+                select(
+                    AnalysisResultModel.keyword,
+                    func.sum(AnalysisResultModel.frequency).label("total_frequency"),
+                    func.count(AnalysisResultModel.id).label("document_count"),
+                )
+                .where(and_(*conditions))
+                .group_by(AnalysisResultModel.keyword)
+                .order_by(func.sum(AnalysisResultModel.frequency).desc())
+                .limit(limit)
+            )
+
+            result = await self._session.execute(stmt)
+            rows = result.all()
+
+            return [
+                {
+                    "keyword": row.keyword,
+                    "total_frequency": int(row.total_frequency),
+                    "document_count": int(row.document_count),
+                }
+                for row in rows
+            ]
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to get most frequent terms",
+                error_code="ANALYSIS_RESULT_MOST_FREQUENT_ERROR",
+                details={"error": str(e), "limit": limit},
             ) from e
 
     async def update(self, result_id: UUID, updates: dict) -> AnalysisResultDTO:

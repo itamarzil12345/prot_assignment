@@ -358,7 +358,53 @@ kubectl logs -f deployment/protego-api
 
 ### Analysis Results
 
-- `GET /api/v1/analysis` - List analysis results (with pagination)
+- `GET /api/v1/analysis` - List analysis results (with pagination and filtering)
+  - **Query Parameters:**
+    - `limit` (int, default: 50, max: 100) - Number of results per page
+    - `offset` (int, default: 0) - Pagination offset
+    - `analysis_type` (optional, enum) - Filter by analysis type (KEYWORD_FREQUENCY, CONDITION_GROUPING, CATEGORY_GROUPING)
+    - `scraping_result_id` (optional, UUID) - Filter by scraping result ID
+    - `keyword` (optional, string) - Filter by keyword (case-insensitive exact match)
+  - **Example:**
+
+    ```bash
+    # Get all analysis results
+    curl "http://localhost:8000/api/v1/analysis?limit=10&offset=0"
+
+    # Filter by keyword
+    curl "http://localhost:8000/api/v1/analysis?keyword=zinc&limit=10"
+
+    # Filter by analysis type and keyword
+    curl "http://localhost:8000/api/v1/analysis?analysis_type=KEYWORD_FREQUENCY&keyword=treatment&limit=10"
+    ```
+- `GET /api/v1/analysis/most-frequent` - Get most frequently occurring keywords
+  - **Query Parameters:**
+    - `limit` (int, default: 10, max: 100) - Number of top terms to return
+    - `analysis_type` (optional, enum) - Filter by analysis type
+  - **Response:** List of terms with total frequency across all documents and document count
+  - **Example:**
+
+    ```bash
+    # Get top 10 most frequent terms
+    curl "http://localhost:8000/api/v1/analysis/most-frequent?limit=10"
+
+    # Get top 20 most frequent terms for keyword frequency analysis only
+    curl "http://localhost:8000/api/v1/analysis/most-frequent?limit=20&analysis_type=KEYWORD_FREQUENCY"
+    ```
+
+  - **Response Format:**
+    ```json
+    {
+      "items": [
+        {
+          "keyword": "treatment",
+          "total_frequency": 1250,
+          "document_count": 45
+        }
+      ],
+      "limit": 10
+    }
+    ```
 - `GET /api/v1/analysis/{id}` - Get analysis result by ID
 - `PUT /api/v1/analysis/{id}` - Update analysis result
 - `DELETE /api/v1/analysis/{id}` - Delete analysis result

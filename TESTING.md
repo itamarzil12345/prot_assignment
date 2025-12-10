@@ -3,6 +3,7 @@
 ## Quick Start - Full System Test
 
 ### 1. Start All Services
+
 ```bash
 # Option 1: Using the convenience script
 ./scripts/start.sh
@@ -12,11 +13,13 @@ docker-compose up --build -d
 ```
 
 This starts all three services in parallel:
+
 - **Scraper Service** - Runs on schedule (default: 2 AM UTC daily)
 - **Analysis Service** - Polls for unprocessed data every 5 minutes
 - **API Service** - Available at http://localhost:8000
 
 ### 2. Verify Services Are Running
+
 ```bash
 # Check service status
 docker-compose ps
@@ -31,6 +34,7 @@ docker-compose logs -f analysis
 ```
 
 ### 3. Test API Endpoints
+
 ```bash
 # Option 1: Use the test script
 ./scripts/test-api.sh
@@ -47,17 +51,20 @@ curl http://localhost:8000/api/v1/analysis
 ## Testing Workflow
 
 ### Initial State (No Data)
+
 1. Services start successfully ✅
 2. Health check returns `{"status": "healthy", "service": "protego-health-api"}` ✅
 3. API endpoints return empty lists (no data yet) ✅
 
 ### After Scraper Runs (Once Daily)
+
 1. Scraper fetches data from FDA DailyMed and ClinicalTrials.gov
 2. Data saved to `scraping_results` table
 3. Check logs: `docker-compose logs scraper`
 4. Verify data: `curl http://localhost:8000/api/v1/scraping`
 
 ### After Analysis Processes Data (Every 5 Minutes)
+
 1. Analysis service finds unprocessed scraping results
 2. Performs keyword frequency and condition grouping analysis
 3. Saves results to `analysis_results` table
@@ -67,11 +74,13 @@ curl http://localhost:8000/api/v1/analysis
 ## Manual Testing Endpoints
 
 ### Health Check
+
 ```bash
 curl http://localhost:8000/health
 ```
 
 ### List Scraping Results
+
 ```bash
 # Get all scraping results (paginated)
 curl "http://localhost:8000/api/v1/scraping?limit=10&offset=0"
@@ -84,6 +93,7 @@ curl http://localhost:8000/api/v1/scraping/{result_id}
 ```
 
 ### List Analysis Results
+
 ```bash
 # Get all analysis results
 curl "http://localhost:8000/api/v1/analysis?limit=10&offset=0"
@@ -94,11 +104,45 @@ curl "http://localhost:8000/api/v1/analysis?analysis_type=KEYWORD_FREQUENCY"
 # Filter by scraping result ID
 curl "http://localhost:8000/api/v1/analysis?scraping_result_id={uuid}"
 
+# Filter by keyword (new feature)
+curl "http://localhost:8000/api/v1/analysis?keyword=zinc&limit=10"
+
+# Combine filters: analysis type and keyword
+curl "http://localhost:8000/api/v1/analysis?analysis_type=KEYWORD_FREQUENCY&keyword=treatment&limit=10"
+
 # Get specific result
 curl http://localhost:8000/api/v1/analysis/{result_id}
 ```
 
+### Most Frequent Terms (New Feature)
+
+```bash
+# Get top 10 most frequent terms across all analysis results
+curl "http://localhost:8000/api/v1/analysis/most-frequent?limit=10"
+
+# Get top 20 most frequent terms for keyword frequency analysis only
+curl "http://localhost:8000/api/v1/analysis/most-frequent?limit=20&analysis_type=KEYWORD_FREQUENCY"
+
+# Example response:
+# {
+#   "items": [
+#     {
+#       "keyword": "treatment",
+#       "total_frequency": 1250,
+#       "document_count": 45
+#     },
+#     {
+#       "keyword": "patients",
+#       "total_frequency": 860,
+#       "document_count": 57
+#     }
+#   ],
+#   "limit": 10
+# }
+```
+
 ### Update Operations
+
 ```bash
 # Update scraping result
 curl -X PUT http://localhost:8000/api/v1/scraping/{result_id} \
@@ -112,6 +156,7 @@ curl -X PUT http://localhost:8000/api/v1/analysis/{result_id} \
 ```
 
 ### Delete Operations
+
 ```bash
 # Delete scraping result
 curl -X DELETE http://localhost:8000/api/v1/scraping/{result_id}
@@ -123,6 +168,7 @@ curl -X DELETE http://localhost:8000/api/v1/analysis/{result_id}
 ## Testing Individual Services
 
 ### Test Scraper Service
+
 ```bash
 # View scraper logs
 docker-compose logs -f scraper
@@ -135,6 +181,7 @@ curl "http://localhost:8000/api/v1/scraping?source_type=FDA_DRUG_LABELS"
 ```
 
 ### Test Analysis Service
+
 ```bash
 # View analysis logs
 docker-compose logs -f analysis
@@ -147,6 +194,7 @@ curl "http://localhost:8000/api/v1/analysis?analysis_type=KEYWORD_FREQUENCY"
 ```
 
 ### Test API Service
+
 ```bash
 # View API logs
 docker-compose logs -f api
@@ -175,31 +223,35 @@ SELECT COUNT(*) FROM scraping_results;
 SELECT COUNT(*) FROM analysis_results;
 
 # View recent scraping results
-SELECT id, source_type, title, scraped_at 
-FROM scraping_results 
-ORDER BY scraped_at DESC 
+SELECT id, source_type, title, scraped_at
+FROM scraping_results
+ORDER BY scraped_at DESC
 LIMIT 10;
 ```
 
 ## Troubleshooting
 
 ### Services won't start
+
 1. Check `.env` file exists and has correct `DATABASE_URL`
 2. Verify database is accessible: `psql "${DATABASE_URL}"`
 3. Check logs: `docker-compose logs`
 
 ### No data in API responses
+
 1. Scraper runs once daily at 2 AM UTC (or configured time)
 2. Wait for next scheduled run, or check scraper logs for errors
 3. Verify database connection from scraper service
 
 ### Analysis not processing data
+
 1. Analysis polls every 5 minutes (configurable)
 2. Check analysis logs for errors
 3. Verify scraping results exist in database
 4. Check that analysis service can connect to database
 
 ### API errors
+
 1. Check API logs: `docker-compose logs api`
 2. Verify database connection
 3. Check request format matches API schema (see `/docs`)
@@ -207,4 +259,3 @@ LIMIT 10;
 ## Automated Testing (TODO)
 
 Unit tests, integration tests, and test coverage will be added in a future update. See `pytest.ini` for configuration.
-

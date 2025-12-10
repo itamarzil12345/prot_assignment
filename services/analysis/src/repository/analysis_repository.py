@@ -38,7 +38,7 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                 analysis_type=result.analysis_type,
                 keyword=result.keyword,
                 frequency=result.frequency,
-                metadata=result.metadata,
+                meta_data=result.metadata,
                 created_at=result.created_at,
             )
 
@@ -63,7 +63,7 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                     analysis_type=result.analysis_type,
                     keyword=result.keyword,
                     frequency=result.frequency,
-                    metadata=result.metadata,
+                    meta_data=result.metadata,
                     created_at=result.created_at,
                 )
                 for result in results
@@ -99,7 +99,7 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                 analysis_type=model.analysis_type,
                 keyword=model.keyword,
                 frequency=model.frequency,
-                metadata=model.metadata,
+                metadata=model.meta_data,
                 created_at=model.created_at,
             )
 
@@ -128,7 +128,7 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                     analysis_type=model.analysis_type,
                     keyword=model.keyword,
                     frequency=model.frequency,
-                    metadata=model.metadata,
+                    metadata=model.meta_data,
                     created_at=model.created_at.isoformat()
                     if model.created_at
                     else "",

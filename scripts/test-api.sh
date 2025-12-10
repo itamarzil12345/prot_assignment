@@ -54,6 +54,38 @@ else
 fi
 echo ""
 
+# Test 3a: Keyword Filter (New Feature)
+echo "3a️⃣ Testing GET /api/v1/analysis?keyword=zinc..."
+RESPONSE=$(curl -s -w "\n%{http_code}" "${API_URL}/api/v1/analysis?keyword=zinc&limit=5")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+
+if [ "$HTTP_CODE" -eq 200 ]; then
+    echo -e "${GREEN}✅ Keyword filter successful (HTTP $HTTP_CODE)${NC}"
+    TOTAL=$(echo "$BODY" | python3 -c "import sys, json; print(json.load(sys.stdin).get('total', 0))" 2>/dev/null || echo "N/A")
+    echo "   Total matching entries: $TOTAL"
+    echo "$BODY" | python3 -m json.tool | head -15
+else
+    echo -e "${YELLOW}⚠️  Keyword filter returned HTTP $HTTP_CODE${NC}"
+    echo "$BODY"
+fi
+echo ""
+
+# Test 3b: Most Frequent Terms (New Feature)
+echo "3b️⃣ Testing GET /api/v1/analysis/most-frequent..."
+RESPONSE=$(curl -s -w "\n%{http_code}" "${API_URL}/api/v1/analysis/most-frequent?limit=5")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+
+if [ "$HTTP_CODE" -eq 200 ]; then
+    echo -e "${GREEN}✅ Most frequent terms successful (HTTP $HTTP_CODE)${NC}"
+    echo "$BODY" | python3 -m json.tool | head -25
+else
+    echo -e "${YELLOW}⚠️  Most frequent terms returned HTTP $HTTP_CODE${NC}"
+    echo "$BODY"
+fi
+echo ""
+
 # Test 4: Check OpenAPI Docs
 echo "4️⃣  Testing OpenAPI Documentation..."
 if curl -s -f "${API_URL}/docs" > /dev/null; then

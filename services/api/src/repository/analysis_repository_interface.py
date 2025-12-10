@@ -56,6 +56,7 @@ class AnalysisRepositoryInterface(ABC):
         offset: int,
         analysis_type: Optional[AnalysisType] = None,
         scraping_result_id: Optional[UUID] = None,
+        keyword: Optional[str] = None,
     ) -> List[AnalysisResultDTO]:
         """List analysis results with pagination.
 
@@ -64,9 +65,53 @@ class AnalysisRepositoryInterface(ABC):
             offset: Number of results to skip
             analysis_type: Optional filter by analysis type
             scraping_result_id: Optional filter by scraping result ID
+            keyword: Optional filter by keyword (case-insensitive partial match)
 
         Returns:
             List of analysis result DTOs
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        pass
+
+    @abstractmethod
+    async def count_all(
+        self,
+        analysis_type: Optional[AnalysisType] = None,
+        scraping_result_id: Optional[UUID] = None,
+        keyword: Optional[str] = None,
+    ) -> int:
+        """Count total analysis results matching filters.
+
+        Args:
+            analysis_type: Optional filter by analysis type
+            scraping_result_id: Optional filter by scraping result ID
+            keyword: Optional filter by keyword (case-insensitive partial match)
+
+        Returns:
+            Total count of matching results
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        pass
+
+    @abstractmethod
+    async def get_most_frequent_terms(
+        self,
+        limit: int,
+        analysis_type: Optional[AnalysisType] = None,
+    ) -> List[dict]:
+        """Get most frequent terms across all analysis results.
+
+        Args:
+            limit: Maximum number of terms to return
+            analysis_type: Optional filter by analysis type
+
+        Returns:
+            List of dictionaries with 'keyword' and 'total_frequency' keys,
+            ordered by total frequency descending
 
         Raises:
             DatabaseError: If database operation fails

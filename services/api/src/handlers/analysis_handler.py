@@ -1,14 +1,18 @@
 """Handlers for analysis result operations."""
 
 from uuid import UUID
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.api.src.handlers.base_handler import BaseHandler
+from shared.types.enums import AnalysisType
 from services.api.src.models.analysis_schema import (
     AnalysisResultResponse,
     AnalysisResultListResponse,
     AnalysisResultUpdateRequest,
     AnalysisResultQueryParams,
+    MostFrequentTermsResponse,
+    MostFrequentTermResponse,
 )
 from services.api.src.repository.analysis_repository import AnalysisRepository
 from services.api.src.errors.api_errors import APINotFoundError
@@ -74,6 +78,7 @@ class AnalysisHandler(BaseHandler):
             offset=query_params.offset,
             analysis_type=query_params.analysis_type,
             scraping_result_id=query_params.scraping_result_id,
+            keyword=query_params.keyword,
         )
 
         # Convert to response models
@@ -90,8 +95,12 @@ class AnalysisHandler(BaseHandler):
             for result in results
         ]
 
-        # TODO: Get total count for proper pagination
-        total = len(items)
+        # Get total count for proper pagination
+        total = await self._repository.count_all(
+            analysis_type=query_params.analysis_type,
+            scraping_result_id=query_params.scraping_result_id,
+            keyword=query_params.keyword,
+        )
 
         return AnalysisResultListResponse(
             items=items,
@@ -148,4 +157,34 @@ class AnalysisHandler(BaseHandler):
             APINotFoundError: If result not found
         """
         await self._repository.delete(result_id)
+
+    async def get_most_frequent_terms(
+        self,
+        limit: int,
+        analysis_type: Optional[AnalysisType] = None,
+    ) -> MostFrequentTermsResponse:
+        """Get most frequent terms across all analysis results.
+
+        Args:
+            limit: Maximum number of terms to return
+            analysis_type: Optional filter by analysis type
+
+        Returns:
+            MostFrequentTermsResponse with list of most frequent terms
+        """
+        results = await self._repository.get_most_frequent_terms(
+            limit=limit,
+            analysis_type=analysis_type,
+        )
+
+        items = [
+            MostFrequentTermResponse(
+                keyword=result["keyword"],
+                total_frequency=result["total_frequency"],
+                document_count=result["document_count"],
+            )
+            for result in results
+        ]
+
+        return MostFrequentTermsResponse(items=items, limit=limit)
 

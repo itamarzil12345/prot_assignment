@@ -58,4 +58,31 @@ class AnalysisResultQueryParams(BaseModel):
     offset: int = Field(default=0, ge=0)
     analysis_type: Optional[AnalysisType] = None
     scraping_result_id: Optional[UUID] = None
+    keyword: Optional[str] = Field(None, max_length=255, description="Filter by keyword (case-insensitive partial match)")
+
+
+class MostFrequentTermResponse(BaseModel):
+    """Response schema for most frequent term."""
+
+    keyword: str
+    total_frequency: int = Field(..., ge=0, description="Total frequency across all documents")
+    document_count: int = Field(..., ge=0, description="Number of documents containing this keyword")
+
+    class Config:
+        """Pydantic config."""
+
+        json_schema_extra = {
+            "example": {
+                "keyword": "treatment",
+                "total_frequency": 1250,
+                "document_count": 45,
+            }
+        }
+
+
+class MostFrequentTermsResponse(BaseModel):
+    """Response schema for list of most frequent terms."""
+
+    items: list[MostFrequentTermResponse]
+    limit: int
 
