@@ -23,15 +23,52 @@ router = APIRouter(prefix=Routes.ANALYSIS, tags=["analysis"])
 @router.get(
     "/most-frequent",
     response_model=MostFrequentTermsResponse,
-    summary="Get most frequent terms",
-    description="Get the most frequently occurring keywords across all analysis results. Returns aggregated statistics including total frequency across all documents and the number of documents containing each keyword. Results are ordered by total frequency (descending).",
+    summary="Get most frequent terms (on-demand aggregation)",
+    description=(
+        "Get the most frequently occurring keywords across all analysis results. "
+        "This endpoint performs on-demand aggregation of KEYWORD_FREQUENCY records. "
+        "Returns aggregated statistics including total frequency across all documents "
+        "and the number of documents containing each keyword. "
+        "Results are ordered by total frequency (descending).\n\n"
+        "Note: For pre-computed global frequent terms stored in the database, "
+        "query the list endpoint with `analysis_type=FREQUENT_TERMS`."
+    ),
+    responses={
+        200: {
+            "description": "List of most frequent terms",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "items": [
+                            {
+                                "keyword": "drug is safe to use",
+                                "total_frequency": 890,
+                                "document_count": 32,
+                            },
+                            {
+                                "keyword": "participants",
+                                "total_frequency": 750,
+                                "document_count": 28,
+                            },
+                            {
+                                "keyword": "clinical trials",
+                                "total_frequency": 650,
+                                "document_count": 45,
+                            },
+                        ],
+                        "limit": 10,
+                    }
+                }
+            },
+        }
+    },
 )
 async def get_most_frequent_terms(
     limit: int = Query(default=10, ge=1, le=100, description="Number of top terms to return (1-100). Returns the N most frequent keywords."),
-    analysis_type: AnalysisType | None = Query(default=None, description="Optional filter by analysis type. If provided, only counts terms from the specified analysis type."),
+    analysis_type: AnalysisType | None = Query(default=None, description="Optional filter by analysis type. Typically use KEYWORD_FREQUENCY (default) to aggregate per-document keyword/phrase counts. Note: Filtering by FREQUENT_TERMS is not recommended as those are already aggregated results."),
     session: AsyncSession = Depends(get_db_session),
 ) -> MostFrequentTermsResponse:
-    """Get most frequent terms across all analysis results with aggregated statistics."""
+    """Get most frequent terms across all analysis results with aggregated statistics (on-demand)."""
     handler = AnalysisHandler(session)
     return await handler.get_most_frequent_terms(limit=limit, analysis_type=analysis_type)
 
@@ -40,13 +77,96 @@ async def get_most_frequent_terms(
     "",
     response_model=AnalysisResultListResponse,
     summary="List analysis results",
-    description="List analysis results with pagination and optional filtering. Supports filtering by analysis type, scraping result ID, and keyword.",
+    description=(
+        "List analysis results with pagination and optional filtering. "
+        "Supports filtering by analysis type, scraping result ID, and keyword.\n\n"
+        "Available analysis types:\n"
+        "- **KEYWORD_FREQUENCY**: Per-document keyword frequency counts\n"
+        "- **FREQUENT_TERMS**: Globally aggregated most frequent terms (pre-computed)\n"
+        "- **CONDITION_GROUPING**: Medical conditions extracted from documents\n"
+        "- **CATEGORY_GROUPING**: Categories (phase, study type, etc.) extracted from documents"
+    ),
+    responses={
+        200: {
+            "description": "List of analysis results",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "keyword_frequency": {
+                            "summary": "KEYWORD_FREQUENCY results (with phrases)",
+                            "value": {
+                                "items": [
+                                    {
+                                        "id": "123e4567-e89b-12d3-a456-426614174000",
+                                        "scraping_result_id": "223e4567-e89b-12d3-a456-426614174000",
+                                        "analysis_type": "KEYWORD_FREQUENCY",
+                                        "keyword": "drug is safe to use",
+                                        "frequency": 15,
+                                        "metadata": {"source_type": "FDA_DRUG_LABELS"},
+                                        "created_at": "2024-01-01T00:00:00Z",
+                                    },
+                                    {
+                                        "id": "123e4567-e89b-12d3-a456-426614174001",
+                                        "scraping_result_id": "223e4567-e89b-12d3-a456-426614174000",
+                                        "analysis_type": "KEYWORD_FREQUENCY",
+                                        "keyword": "treatment",
+                                        "frequency": 10,
+                                        "metadata": {"source_type": "CLINICAL_TRIALS"},
+                                        "created_at": "2024-01-01T00:00:00Z",
+                                    }
+                                ],
+                                "total": 1250,
+                                "limit": 50,
+                                "offset": 0,
+                            }
+                        },
+                        "frequent_terms": {
+                            "summary": "FREQUENT_TERMS results (global aggregation)",
+                            "value": {
+                                "items": [
+                                    {
+                                        "id": "123e4567-e89b-12d3-a456-426614174002",
+                                        "scraping_result_id": None,
+                                        "analysis_type": "FREQUENT_TERMS",
+                                        "keyword": "drug is safe to use",
+                                        "frequency": 890,
+                                        "metadata": {
+                                            "document_count": 32,
+                                            "rank": 1,
+                                            "aggregated_from": "KEYWORD_FREQUENCY"
+                                        },
+                                        "created_at": "2024-01-01T00:00:00Z",
+                                    },
+                                    {
+                                        "id": "123e4567-e89b-12d3-a456-426614174003",
+                                        "scraping_result_id": None,
+                                        "analysis_type": "FREQUENT_TERMS",
+                                        "keyword": "participants",
+                                        "frequency": 750,
+                                        "metadata": {
+                                            "document_count": 28,
+                                            "rank": 2,
+                                            "aggregated_from": "KEYWORD_FREQUENCY"
+                                        },
+                                        "created_at": "2024-01-01T00:00:00Z",
+                                    }
+                                ],
+                                "total": 50,
+                                "limit": 50,
+                                "offset": 0,
+                            }
+                        }
+                    }
+                }
+            },
+        }
+    },
 )
 async def list_analysis_results(
     limit: int = Query(default=50, ge=1, le=100, description="Maximum number of results per page (1-100)"),
     offset: int = Query(default=0, ge=0, description="Number of results to skip for pagination"),
-    analysis_type: AnalysisType | None = Query(default=None, description="Filter by analysis type (KEYWORD_FREQUENCY, CONDITION_GROUPING, CATEGORY_GROUPING)"),
-    scraping_result_id: UUID | None = Query(default=None, description="Filter by scraping result UUID"),
+    analysis_type: AnalysisType | None = Query(default=None, description="Filter by analysis type: KEYWORD_FREQUENCY (per-document counts), FREQUENT_TERMS (global aggregation), CONDITION_GROUPING, or CATEGORY_GROUPING"),
+    scraping_result_id: UUID | None = Query(default=None, description="Filter by scraping result UUID. Note: FREQUENT_TERMS results have null scraping_result_id as they are global aggregations."),
     keyword: str | None = Query(default=None, description="Filter by keyword (case-insensitive exact match). Returns all entries where the keyword exactly matches this value."),
     session: AsyncSession = Depends(get_db_session),
 ) -> AnalysisResultListResponse:

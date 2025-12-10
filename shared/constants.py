@@ -62,6 +62,9 @@ class Limits:
     ANALYSIS_KEYWORD_LIMIT = 50  # Maximum keywords per analysis result
     MIN_KEYWORD_LENGTH = 3  # Minimum word length for keyword extraction
     MAX_KEYWORD_FREQUENCY_RESULTS = 50  # Max keywords per analysis result
+    MAX_NGRAM_SIZE = 5  # Maximum n-gram size for phrase extraction (e.g., 5 = 5-word phrases like "drug is safe for use")
+    MIN_NGRAM_SIZE = 2  # Minimum n-gram size for phrase extraction (bigrams)
+    MAX_STOP_WORD_RATIO_IN_NGRAM = 0.5  # Max ratio of stop words allowed in n-grams (0.5 = half)
     SCRAPER_RETRY_ATTEMPTS = 3
     SCRAPER_RETRY_DELAY = 60
     LOG_MAX_BYTES = 10485760  # 10 MB

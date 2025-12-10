@@ -29,6 +29,9 @@ class KeywordAnalyzer(AnalyzerInterface):
         self._logger = logger
         self._min_word_length = Limits.MIN_KEYWORD_LENGTH
         self._stop_words = get_stop_words()
+        self._max_ngram_size = Limits.MAX_NGRAM_SIZE
+        self._min_ngram_size = Limits.MIN_NGRAM_SIZE
+        self._max_stop_word_ratio = Limits.MAX_STOP_WORD_RATIO_IN_NGRAM
 
     async def get_analysis_type(self) -> str:
         """Get the type of analysis performed."""
@@ -98,34 +101,101 @@ class KeywordAnalyzer(AnalyzerInterface):
             ) from e
 
     def _extract_keyword_frequencies(self, text: str) -> Dict[str, int]:
-        """Extract keyword frequencies from text.
+        """Extract keyword frequencies from text, including phrases (n-grams).
 
-        Extracts all words from text, filters stop words and short words,
-        then counts frequencies to find most common terms.
+        Extracts:
+        1. Individual words (filtered stop words and short words)
+        2. Multi-word phrases (n-grams) from bigrams up to max_ngram_size
 
         Args:
             text: Text to analyze
 
         Returns:
-            Dictionary mapping keywords to frequencies
+            Dictionary mapping keywords/phrases to frequencies
         """
+        counter = Counter()
+
         # Extract words using regex with word boundaries
         words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
 
-        # Filter words: remove stop words and short words
+        # 1. Extract individual words (filter stop words and short words)
         filtered_words = [
             word for word in words
             if len(word) >= self._min_word_length
             and word not in self._stop_words
         ]
+        counter.update(filtered_words)
 
-        # Count frequencies using Counter
-        counter = Counter(filtered_words)
+        # 2. Extract n-grams (phrases) from bigrams to max_ngram_size
+        for n in range(self._min_ngram_size, self._max_ngram_size + 1):
+            ngrams = self._extract_ngrams(words, n)
+            counter.update(ngrams)
 
-        # Return top N most frequent keywords
+        # Return top N most frequent keywords/phrases
         top_keywords = dict(
             counter.most_common(Limits.MAX_KEYWORD_FREQUENCY_RESULTS)
         )
 
         return top_keywords
+
+    def _extract_ngrams(self, words: List[str], n: int) -> List[str]:
+        """Extract n-grams (phrases) from a list of words.
+
+        Args:
+            words: List of words (already lowercased)
+            n: Size of n-gram (2 = bigram, 3 = trigram, etc.)
+
+        Returns:
+            List of valid n-grams (phrases) as strings
+        """
+        ngrams = []
+        
+        # Generate all possible n-grams
+        for i in range(len(words) - n + 1):
+            ngram_words = words[i:i + n]
+            ngram_phrase = " ".join(ngram_words)
+            
+            # Filter n-grams based on quality criteria
+            if self._is_valid_ngram(ngram_words):
+                ngrams.append(ngram_phrase)
+        
+        return ngrams
+
+    def _is_valid_ngram(self, words: List[str]) -> bool:
+        """Check if an n-gram is valid based on stop word ratio and word length.
+
+        Args:
+            words: List of words in the n-gram
+
+        Returns:
+            True if n-gram is valid, False otherwise
+        """
+        if not words:
+            return False
+        
+        # Count stop words and non-stop words
+        stop_word_count = sum(1 for word in words if word in self._stop_words)
+        non_stop_words = [word for word in words if word not in self._stop_words]
+        
+        # Check stop word ratio
+        stop_word_ratio = stop_word_count / len(words)
+        if stop_word_ratio > self._max_stop_word_ratio:
+            return False
+        
+        # Must have at least one non-stop word that meets minimum length
+        valid_words = [
+            word for word in non_stop_words
+            if len(word) >= self._min_word_length
+        ]
+        if not valid_words:
+            return False
+        
+        # Don't allow n-grams that start or end with only stop words
+        # (unless they have valid content words in between)
+        if words[0] in self._stop_words and words[-1] in self._stop_words:
+            # Allow if there's at least one valid word in the middle
+            if len(valid_words) == 0:
+                return False
+        
+        return True
 

@@ -13,7 +13,8 @@ class SourceType(str, Enum):
 class AnalysisType(str, Enum):
     """Enumeration for analysis result types."""
 
-    KEYWORD_FREQUENCY = "KEYWORD_FREQUENCY"
+    KEYWORD_FREQUENCY = "KEYWORD_FREQUENCY"  # Per-document keyword frequency counts
+    FREQUENT_TERMS = "FREQUENT_TERMS"  # Global most frequent terms across all documents
     CONDITION_GROUPING = "CONDITION_GROUPING"
     CATEGORY_GROUPING = "CATEGORY_GROUPING"
 

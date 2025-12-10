@@ -2,7 +2,8 @@
 
 import asyncio
 import signal
-from datetime import timezone
+import uuid
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from services.analysis.src.config import ANALYSIS_ENABLED, ANALYSIS_BATCH_SIZE
@@ -48,13 +49,15 @@ class AnalysisService:
         """Execute the analysis task for all analysis types."""
         await self._logger.info("Starting analysis task")
 
-        analysis_types = [
+        # Per-document analysis types
+        per_document_analysis_types = [
             AnalysisType.KEYWORD_FREQUENCY,
             AnalysisType.CONDITION_GROUPING,
             AnalysisType.CATEGORY_GROUPING,
         ]
 
-        for analysis_type in analysis_types:
+        # Process per-document analyses
+        for analysis_type in per_document_analysis_types:
             try:
                 await self._analyze_unprocessed(analysis_type)
             except Exception as e:
@@ -63,6 +66,15 @@ class AnalysisService:
                     extra={"analysis_type": analysis_type.value, "error": str(e)},
                 )
                 # Continue with next analysis type even if one fails
+
+        # Process global aggregation analyses (after per-document analyses)
+        try:
+            await self._analyze_frequent_terms()
+        except Exception as e:
+            await self._logger.error(
+                f"Failed to analyze FREQUENT_TERMS: {str(e)}",
+                extra={"analysis_type": "FREQUENT_TERMS", "error": str(e)},
+            )
 
         await self._logger.info("Analysis task completed")
 
@@ -126,7 +138,7 @@ class AnalysisService:
                     # Perform analysis
                     analysis_results = await analyzer.analyze(model_result)
 
-                    # Save analysis results
+                    # Save analysis results (even if empty, to mark record as processed)
                     if analysis_results:
                         repo_results = [
                             AnalysisResultDTO(
@@ -143,6 +155,41 @@ class AnalysisService:
 
                         await analysis_repo.create_batch(repo_results)
                         analyzed_count += 1
+                        await self._logger.debug(
+                            f"Saved {len(repo_results)} {analysis_type.value} results for scraping result {scraping_id}",
+                            extra={
+                                "scraping_id": str(scraping_id),
+                                "result_count": len(repo_results),
+                                "analysis_type": analysis_type.value,
+                            },
+                        )
+                    else:
+                        # Mark as processed even if no results found (e.g., FDA records may not have required fields)
+                        # This prevents records from blocking processing indefinitely
+                        marker_result = AnalysisResultDTO(
+                            id=uuid.uuid4(),
+                            scraping_result_id=scraping_result.id,
+                            analysis_type=analysis_type,
+                            keyword=None,  # None indicates "processed but no results"
+                            frequency=0,
+                            metadata={
+                                "processed": True,
+                                "no_results": True,
+                                "source_type": scraping_result.source_type.value,
+                                "reason": "Analyzer returned no results for this source type/data structure",
+                            },
+                            created_at=datetime.now(timezone.utc),
+                        )
+
+                        await analysis_repo.create_batch([marker_result])
+                        await self._logger.debug(
+                            f"Marked scraping result {scraping_id} as processed for {analysis_type.value} (no results found)",
+                            extra={
+                                "scraping_id": str(scraping_id),
+                                "source_type": scraping_result.source_type.value,
+                                "analysis_type": analysis_type.value,
+                            },
+                        )
 
                 except Exception as e:
                     error_count += 1
@@ -158,6 +205,63 @@ class AnalysisService:
                 f"Completed {analysis_type.value} analysis: "
                 f"{analyzed_count} analyzed, {error_count} errors"
             )
+
+    async def _analyze_frequent_terms(self) -> None:
+        """Analyze globally most frequent terms by aggregating KEYWORD_FREQUENCY records.
+        
+        This is a special analysis type that aggregates across all documents,
+        not a per-document analysis.
+        """
+        await self._logger.info("Starting FREQUENT_TERMS analysis (global aggregation)")
+
+        async with self._session_factory() as session:
+            analysis_repo = AnalysisRepository(session)
+            
+            from services.analysis.src.analyzer.frequent_terms_analyzer import (
+                FrequentTermsAnalyzer,
+            )
+            
+            analyzer = FrequentTermsAnalyzer(self._logger, analysis_repo)
+            
+            # Run global aggregation (no scraping_result needed)
+            analysis_results = await analyzer.analyze()
+            
+            if analysis_results:
+                # Delete old FREQUENT_TERMS results (replace with new aggregation)
+                existing_results = await analysis_repo.get_by_analysis_type(
+                    AnalysisType.FREQUENT_TERMS
+                )
+                if existing_results:
+                    await self._logger.debug(
+                        f"Deleting {len(existing_results)} existing FREQUENT_TERMS results"
+                    )
+                    for old_result in existing_results:
+                        await analysis_repo.delete(old_result.id)
+                
+                # Save new results
+                repo_results = [
+                    AnalysisResultDTO(
+                        id=result.id,
+                        scraping_result_id=result.scraping_result_id,
+                        analysis_type=result.analysis_type,
+                        keyword=result.keyword,
+                        frequency=result.frequency,
+                        metadata=result.metadata,
+                        created_at=result.created_at,
+                    )
+                    for result in analysis_results
+                ]
+                
+                await analysis_repo.create_batch(repo_results)
+                await self._logger.info(
+                    f"FREQUENT_TERMS analysis completed: {len(repo_results)} terms stored"
+                )
+            else:
+                await self._logger.warning(
+                    "FREQUENT_TERMS analysis returned no results"
+                )
+            
+            await session.commit()
 
     def _get_analyzer(self, analysis_type: AnalysisType):
         """Get analyzer instance for analysis type.

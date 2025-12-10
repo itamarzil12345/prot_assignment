@@ -15,7 +15,7 @@ class AnalysisResultDTO:
     def __init__(
         self,
         id: UUID,
-        scraping_result_id: UUID,
+        scraping_result_id: Optional[UUID],  # None for global aggregations like FREQUENT_TERMS
         analysis_type: AnalysisType,
         keyword: Optional[str],
         frequency: int,
@@ -109,6 +109,53 @@ class AnalysisRepositoryInterface(ABC):
 
         Returns:
             List of scraping result UUIDs
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        pass
+
+    @abstractmethod
+    async def get_by_analysis_type(
+        self, analysis_type: AnalysisType
+    ) -> List[AnalysisResultDTO]:
+        """Get all analysis results of a specific type.
+
+        Args:
+            analysis_type: Type of analysis
+
+        Returns:
+            List of analysis result DTOs
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        pass
+
+    @abstractmethod
+    async def delete(self, result_id: UUID) -> None:
+        """Delete an analysis result by ID.
+
+        Args:
+            result_id: UUID of the result to delete
+
+        Raises:
+            DatabaseError: If database operation fails
+        """
+        pass
+
+    @abstractmethod
+    async def get_most_frequent_terms(
+        self, limit: int, analysis_type: Optional[AnalysisType] = None
+    ) -> List[dict]:
+        """Get most frequent terms across all analysis results.
+
+        Args:
+            limit: Maximum number of terms to return
+            analysis_type: Optional filter by analysis type
+
+        Returns:
+            List of dictionaries with keyword, total_frequency, and document_count
 
         Raises:
             DatabaseError: If database operation fails

@@ -50,7 +50,7 @@ class AnalysisResultModel(Base):
     scraping_result_id = Column(
         UUID(as_uuid=True),
         ForeignKey(f"{Tables.SCRAPING_RESULTS}.id"),
-        nullable=False,
+        nullable=True,  # Allow NULL for global aggregations like FREQUENT_TERMS
         index=True,
     )
     analysis_type = Column(Enum(AnalysisType), nullable=False, index=True)

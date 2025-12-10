@@ -1,9 +1,9 @@
 """Repository implementation for analysis results."""
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, not_
+from sqlalchemy import select, and_, not_, func
 from sqlalchemy.orm import selectinload
 
 from services.api.src.database.models import (
@@ -129,9 +129,7 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                     keyword=model.keyword,
                     frequency=model.frequency,
                     metadata=model.meta_data,
-                    created_at=model.created_at.isoformat()
-                    if model.created_at
-                    else "",
+                    created_at=model.created_at,
                 )
                 for model in models
             ]
@@ -184,5 +182,102 @@ class AnalysisRepository(AnalysisRepositoryInterface):
                     "limit": limit,
                     "analysis_type": analysis_type.value,
                 },
+            ) from e
+
+    async def get_most_frequent_terms(
+        self, limit: int, analysis_type: Optional[AnalysisType] = None
+    ) -> List[Dict[str, Any]]:
+        """Get most frequent terms across all analysis results."""
+        try:
+            conditions = [
+                AnalysisResultModel.keyword.isnot(None),
+            ]
+
+            if analysis_type:
+                conditions.append(AnalysisResultModel.analysis_type == analysis_type)
+
+            stmt = (
+                select(
+                    AnalysisResultModel.keyword,
+                    func.sum(AnalysisResultModel.frequency).label("total_frequency"),
+                    func.count(AnalysisResultModel.id).label("document_count"),
+                )
+                .where(and_(*conditions))
+                .group_by(AnalysisResultModel.keyword)
+                .order_by(func.sum(AnalysisResultModel.frequency).desc())
+                .limit(limit)
+            )
+
+            result = await self._session.execute(stmt)
+            rows = result.all()
+
+            return [
+                {
+                    "keyword": row.keyword,
+                    "total_frequency": int(row.total_frequency),
+                    "document_count": int(row.document_count),
+                }
+                for row in rows
+            ]
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to get most frequent terms",
+                error_code="ANALYSIS_GET_MOST_FREQUENT_ERROR",
+                details={"error": str(e), "limit": limit},
+            ) from e
+
+    async def get_by_analysis_type(
+        self, analysis_type: AnalysisType
+    ) -> List[AnalysisResultDTO]:
+        """Get all analysis results of a specific type."""
+        try:
+            stmt = select(AnalysisResultModel).where(
+                AnalysisResultModel.analysis_type == analysis_type
+            )
+            result = await self._session.execute(stmt)
+            models = result.scalars().all()
+
+            return [
+                AnalysisResultDTO(
+                    id=model.id,
+                    scraping_result_id=model.scraping_result_id,
+                    analysis_type=model.analysis_type,
+                    keyword=model.keyword,
+                    frequency=model.frequency,
+                    metadata=model.meta_data,
+                    created_at=model.created_at,
+                )
+                for model in models
+            ]
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to get analysis results by analysis type",
+                error_code="ANALYSIS_RESULT_GET_BY_TYPE_ERROR",
+                details={
+                    "error": str(e),
+                    "analysis_type": analysis_type.value,
+                },
+            ) from e
+
+    async def delete(self, result_id: UUID) -> None:
+        """Delete an analysis result by ID."""
+        try:
+            stmt = select(AnalysisResultModel).where(
+                AnalysisResultModel.id == result_id
+            )
+            result = await self._session.execute(stmt)
+            model = result.scalar_one_or_none()
+
+            if model:
+                await self._session.delete(model)
+                await self._session.flush()
+
+        except Exception as e:
+            raise DatabaseError(
+                message="Failed to delete analysis result",
+                error_code="ANALYSIS_RESULT_DELETE_ERROR",
+                details={"error": str(e), "result_id": str(result_id)},
             ) from e
 

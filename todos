@@ -5,5 +5,12 @@ it ? analysis and then persisting to db ? or only on demand
 ✅ run build, test, deploy
 ✅ test data ingestion in postgres and inspect it
 ✅ test analytics data
-✅ test API
 ✅ use Cursor MCP for postman (API testing) and for mermaid (to communicate architecture)
+✅ test API
+✅ improve API for more analysis options
+✅ inspect why analysis table has KEYWORD_FREQUENCY records and not FREQUENT_TERMS
+✅ inspect log files
+✅ consider to refactor data ingestion to batches
+✅ analyse analysis performance and improve
+✅ refactor naive approach to frequency to bigram extraction and n-gram extraction
+- inspect analysis_type: CATEGORY_GROUPING has keyword: null for all records
