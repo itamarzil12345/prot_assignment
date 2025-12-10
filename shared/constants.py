@@ -59,6 +59,9 @@ class Limits:
     """System limits and thresholds."""
 
     ANALYSIS_BATCH_SIZE = 100
+    ANALYSIS_KEYWORD_LIMIT = 50  # Maximum keywords per analysis result
+    MIN_KEYWORD_LENGTH = 3  # Minimum word length for keyword extraction
+    MAX_KEYWORD_FREQUENCY_RESULTS = 50  # Max keywords per analysis result
     SCRAPER_RETRY_ATTEMPTS = 3
     SCRAPER_RETRY_DELAY = 60
     LOG_MAX_BYTES = 10485760  # 10 MB

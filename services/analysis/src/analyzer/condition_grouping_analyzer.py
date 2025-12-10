@@ -1,25 +1,15 @@
 """Condition grouping analyzer implementation."""
 
 import uuid
-import re
 from datetime import datetime, timezone
-from typing import List, Dict, Set
-from collections import defaultdict
+from typing import List, Set
 
 from services.analysis.src.analyzer.analyzer_interface import AnalyzerInterface
 from services.analysis.src.models.analysis_result_dto import AnalysisResultDTO
 from services.analysis.src.errors.analysis_errors import AnalysisError
 from services.scraper.src.models.scraping_result_dto import ScrapingResultDTO
 from shared.logging.logger_interface import LoggerInterface
-from shared.types.enums import AnalysisType
-
-# Common medical conditions
-COMMON_CONDITIONS = {
-    "diabetes", "hypertension", "cancer", "arthritis", "asthma",
-    "depression", "anxiety", "heart disease", "stroke", "migraine",
-    "epilepsy", "parkinson", "alzheimer", "osteoporosis", "obesity",
-    "insomnia", "pain", "infection", "inflammation", "fever",
-}
+from shared.types.enums import AnalysisType, SourceType
 
 
 class ConditionGroupingAnalyzer(AnalyzerInterface):
@@ -42,6 +32,10 @@ class ConditionGroupingAnalyzer(AnalyzerInterface):
     ) -> List[AnalysisResultDTO]:
         """Analyze scraping result for medical conditions.
 
+        Extracts conditions from structured fields in the data.
+        For ClinicalTrials: extracts from conditionsModule.conditions
+        For FDA: extracts from indication fields if available
+
         Args:
             scraping_result: Scraped data to analyze
 
@@ -56,17 +50,17 @@ class ConditionGroupingAnalyzer(AnalyzerInterface):
                 f"Starting condition grouping analysis for: {scraping_result.id}"
             )
 
-            # Extract text
-            text = self._extract_text(scraping_result).lower()
-
-            # Find matching conditions
+            # Extract conditions based on source type
             found_conditions: Set[str] = set()
 
-            for condition in COMMON_CONDITIONS:
-                # Use word boundary matching
-                pattern = r'\b' + re.escape(condition) + r'\b'
-                if re.search(pattern, text, re.IGNORECASE):
-                    found_conditions.add(condition)
+            if scraping_result.source_type == SourceType.CLINICAL_TRIALS:
+                found_conditions = self._extract_conditions_from_clinical_trials(
+                    scraping_result
+                )
+            elif scraping_result.source_type == SourceType.FDA_DRUG_LABELS:
+                found_conditions = self._extract_conditions_from_fda(
+                    scraping_result
+                )
 
             # Create analysis results
             results: List[AnalysisResultDTO] = []
@@ -105,47 +99,76 @@ class ConditionGroupingAnalyzer(AnalyzerInterface):
                 },
             ) from e
 
-    def _extract_text(self, scraping_result: ScrapingResultDTO) -> str:
-        """Extract text content from scraping result.
+    def _extract_conditions_from_clinical_trials(
+        self, scraping_result: ScrapingResultDTO
+    ) -> Set[str]:
+        """Extract conditions from ClinicalTrials structured data.
 
         Args:
-            scraping_result: Scraping result to extract text from
+            scraping_result: Scraping result with ClinicalTrials data
 
         Returns:
-            Combined text content
+            Set of condition strings found
         """
-        text_parts: List[str] = []
+        conditions: Set[str] = set()
 
-        if scraping_result.title:
-            text_parts.append(scraping_result.title)
+        if not scraping_result.data:
+            return conditions
 
-        if scraping_result.data:
-            text_parts.extend(self._extract_text_from_dict(scraping_result.data))
+        # Extract from protocolSection.conditionsModule.conditions
+        protocol_section = scraping_result.data.get("protocolSection", {})
+        conditions_module = protocol_section.get("conditionsModule", {})
 
-        return " ".join(text_parts)
+        # Extract conditions array
+        conditions_list = conditions_module.get("conditions", [])
+        if isinstance(conditions_list, list):
+            for condition in conditions_list:
+                if isinstance(condition, str) and condition.strip():
+                    conditions.add(condition.strip())
 
-    def _extract_text_from_dict(self, data: dict) -> List[str]:
-        """Recursively extract text from dictionary.
+        # Also extract from keywords if available
+        keywords_list = conditions_module.get("keywords", [])
+        if isinstance(keywords_list, list):
+            for keyword in keywords_list:
+                if isinstance(keyword, str) and keyword.strip():
+                    conditions.add(keyword.strip())
+
+        return conditions
+
+    def _extract_conditions_from_fda(
+        self, scraping_result: ScrapingResultDTO
+    ) -> Set[str]:
+        """Extract conditions from FDA drug label data.
 
         Args:
-            data: Dictionary to extract text from
+            scraping_result: Scraping result with FDA data
 
         Returns:
-            List of text strings
+            Set of condition strings found
         """
-        text_parts: List[str] = []
+        conditions: Set[str] = set()
 
-        for key, value in data.items():
-            if isinstance(value, str):
-                text_parts.append(value)
-            elif isinstance(value, dict):
-                text_parts.extend(self._extract_text_from_dict(value))
-            elif isinstance(value, list):
-                for item in value:
-                    if isinstance(item, str):
-                        text_parts.append(item)
-                    elif isinstance(item, dict):
-                        text_parts.extend(self._extract_text_from_dict(item))
+        if not scraping_result.data:
+            return conditions
 
-        return text_parts
+        # FDA data structure varies, check common indication fields
+        # Look for indication, indication_text, or similar fields
+        data = scraping_result.data
+
+        # Check for indication field
+        indication = data.get("indication") or data.get("indication_text")
+        if isinstance(indication, str) and indication.strip():
+            conditions.add(indication.strip())
+
+        # Check for indications array if available
+        indications = data.get("indications")
+        if isinstance(indications, list):
+            for ind in indications:
+                if isinstance(ind, str) and ind.strip():
+                    conditions.add(ind.strip())
+
+        # Note: FDA data structure may vary by API endpoint
+        # This is a basic extraction that can be extended
+
+        return conditions
 

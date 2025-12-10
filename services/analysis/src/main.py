@@ -51,6 +51,7 @@ class AnalysisService:
         analysis_types = [
             AnalysisType.KEYWORD_FREQUENCY,
             AnalysisType.CONDITION_GROUPING,
+            AnalysisType.CATEGORY_GROUPING,
         ]
 
         for analysis_type in analysis_types:
@@ -172,6 +173,12 @@ class AnalysisService:
 
         if analysis_type == AnalysisType.CONDITION_GROUPING:
             return ConditionGroupingAnalyzer(self._logger)
+
+        if analysis_type == AnalysisType.CATEGORY_GROUPING:
+            from services.analysis.src.analyzer.category_grouping_analyzer import (
+                CategoryGroupingAnalyzer,
+            )
+            return CategoryGroupingAnalyzer(self._logger)
 
         raise ValueError(f"Unknown analysis type: {analysis_type}")
 

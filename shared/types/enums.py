@@ -15,6 +15,7 @@ class AnalysisType(str, Enum):
 
     KEYWORD_FREQUENCY = "KEYWORD_FREQUENCY"
     CONDITION_GROUPING = "CONDITION_GROUPING"
+    CATEGORY_GROUPING = "CATEGORY_GROUPING"
 
 
 class LogLevel(str, Enum):

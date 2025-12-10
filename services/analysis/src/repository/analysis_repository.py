@@ -159,13 +159,12 @@ class AnalysisRepository(AnalysisRepositoryInterface):
             )
 
             # Get scraping IDs that are not in the processed list
+            # Use ~ (NOT) operator with .in_()
             stmt = (
                 select(ScrapingResultModel.id)
                 .where(
-                    not_(
-                        ScrapingResultModel.id.in_(
-                            select(processed_ids_subquery.scalar_subquery())
-                        )
+                    ~ScrapingResultModel.id.in_(
+                        processed_ids_subquery
                     )
                 )
                 .limit(limit)

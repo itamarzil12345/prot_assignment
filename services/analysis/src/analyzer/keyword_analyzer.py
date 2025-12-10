@@ -3,7 +3,7 @@
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import List, Dict, Set
+from typing import List, Dict
 from collections import Counter
 
 from services.analysis.src.analyzer.analyzer_interface import AnalyzerInterface
@@ -13,19 +13,12 @@ from services.scraper.src.models.scraping_result_dto import ScrapingResultDTO
 from shared.constants import Limits
 from shared.logging.logger_interface import LoggerInterface
 from shared.types.enums import AnalysisType
+from shared.utils.stop_words import get_stop_words
+from shared.utils.text_extractor import extract_all_text
 
 
 class KeywordAnalyzer(AnalyzerInterface):
-    """Analyzer for extracting and counting keyword frequencies."""
-
-    # Common medical/clinical keywords to look for
-    MEDICAL_KEYWORDS = {
-        "treatment", "patient", "clinical", "dose", "dosage", "side effect",
-        "adverse", "efficacy", "safety", "trial", "study", "condition",
-        "disease", "therapy", "medication", "drug", "indication",
-        "contraindication", "interaction", "pharmacokinetics",
-        "pharmacodynamics", "metabolism", "excretion",
-    }
+    """Analyzer for extracting and counting keyword frequencies from actual data."""
 
     def __init__(self, logger: LoggerInterface) -> None:
         """Initialize keyword analyzer.
@@ -34,7 +27,8 @@ class KeywordAnalyzer(AnalyzerInterface):
             logger: Logger instance for logging operations
         """
         self._logger = logger
-        self._min_word_length = 3
+        self._min_word_length = Limits.MIN_KEYWORD_LENGTH
+        self._stop_words = get_stop_words()
 
     async def get_analysis_type(self) -> str:
         """Get the type of analysis performed."""
@@ -59,8 +53,13 @@ class KeywordAnalyzer(AnalyzerInterface):
                 f"Starting keyword analysis for scraping result: {scraping_result.id}"
             )
 
-            # Extract text from scraping result data
-            text = self._extract_text(scraping_result)
+            # Extract all text from scraping result using utility
+            text_parts: List[str] = []
+            if scraping_result.title:
+                text_parts.append(scraping_result.title)
+            if scraping_result.data:
+                text_parts.append(extract_all_text(scraping_result.data))
+            text = " ".join(text_parts)
 
             # Extract keywords and count frequencies
             keyword_counts = self._extract_keyword_frequencies(text)
@@ -98,54 +97,11 @@ class KeywordAnalyzer(AnalyzerInterface):
                 details={"scraping_result_id": str(scraping_result.id), "error": str(e)},
             ) from e
 
-    def _extract_text(self, scraping_result: ScrapingResultDTO) -> str:
-        """Extract text content from scraping result.
-
-        Args:
-            scraping_result: Scraping result to extract text from
-
-        Returns:
-            Combined text content
-        """
-        text_parts: List[str] = []
-
-        # Add title
-        if scraping_result.title:
-            text_parts.append(scraping_result.title)
-
-        # Extract text from data dictionary
-        if scraping_result.data:
-            text_parts.extend(self._extract_text_from_dict(scraping_result.data))
-
-        return " ".join(text_parts)
-
-    def _extract_text_from_dict(self, data: dict) -> List[str]:
-        """Recursively extract text from dictionary.
-
-        Args:
-            data: Dictionary to extract text from
-
-        Returns:
-            List of text strings
-        """
-        text_parts: List[str] = []
-
-        for key, value in data.items():
-            if isinstance(value, str):
-                text_parts.append(value)
-            elif isinstance(value, dict):
-                text_parts.extend(self._extract_text_from_dict(value))
-            elif isinstance(value, list):
-                for item in value:
-                    if isinstance(item, str):
-                        text_parts.append(item)
-                    elif isinstance(item, dict):
-                        text_parts.extend(self._extract_text_from_dict(item))
-
-        return text_parts
-
     def _extract_keyword_frequencies(self, text: str) -> Dict[str, int]:
         """Extract keyword frequencies from text.
+
+        Extracts all words from text, filters stop words and short words,
+        then counts frequencies to find most common terms.
 
         Args:
             text: Text to analyze
@@ -153,21 +109,23 @@ class KeywordAnalyzer(AnalyzerInterface):
         Returns:
             Dictionary mapping keywords to frequencies
         """
-        # Convert to lowercase and split into words
+        # Extract words using regex with word boundaries
         words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
 
-        # Filter words by length and medical keywords
+        # Filter words: remove stop words and short words
         filtered_words = [
             word for word in words
             if len(word) >= self._min_word_length
-            and word in self.MEDICAL_KEYWORDS
+            and word not in self._stop_words
         ]
 
-        # Count frequencies
+        # Count frequencies using Counter
         counter = Counter(filtered_words)
 
-        # Return top keywords (limit to avoid too many results)
-        top_keywords = dict(counter.most_common(Limits.ANALYSIS_BATCH_SIZE))
+        # Return top N most frequent keywords
+        top_keywords = dict(
+            counter.most_common(Limits.MAX_KEYWORD_FREQUENCY_RESULTS)
+        )
 
         return top_keywords
 
